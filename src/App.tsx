@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Check, X, ArrowClockwise, Lightning, Target, ClockCounterClockwise } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -35,16 +36,25 @@ interface HistoryEntry {
 }
 
 const CORRECT_ANSWERS: Record<string, string[]> = {
-  'sin-30': ['0.5', '1/2', '.5'],
-  'sin-45': ['0.707', '0.7071', '√2/2', '1/√2', 'sqrt(2)/2'],
-  'sin-60': ['0.866', '0.8660', '√3/2', 'sqrt(3)/2'],
-  'cos-30': ['0.866', '0.8660', '√3/2', 'sqrt(3)/2'],
-  'cos-45': ['0.707', '0.7071', '√2/2', '1/√2', 'sqrt(2)/2'],
-  'cos-60': ['0.5', '1/2', '.5'],
-  'tan-30': ['0.577', '0.5773', '√3/3', '1/√3', 'sqrt(3)/3'],
+  'sin-30': ['1/2', '0.5', '.5'],
+  'sin-45': ['√2/2', '0.707', '0.7071', '1/√2', 'sqrt(2)/2'],
+  'sin-60': ['√3/2', '0.866', '0.8660', 'sqrt(3)/2'],
+  'cos-30': ['√3/2', '0.866', '0.8660', 'sqrt(3)/2'],
+  'cos-45': ['√2/2', '0.707', '0.7071', '1/√2', 'sqrt(2)/2'],
+  'cos-60': ['1/2', '0.5', '.5'],
+  'tan-30': ['√3/3', '0.577', '0.5773', '1/√3', 'sqrt(3)/3'],
   'tan-45': ['1', '1.0'],
-  'tan-60': ['1.732', '1.7320', '√3', 'sqrt(3)'],
+  'tan-60': ['√3', '1.732', '1.7320', 'sqrt(3)'],
 }
+
+const DROPDOWN_OPTIONS = [
+  { value: '1/2', label: '1/2' },
+  { value: '√2/2', label: '√2/2' },
+  { value: '√3/2', label: '√3/2' },
+  { value: '√3/3', label: '√3/3' },
+  { value: '1', label: '1' },
+  { value: '√3', label: '√3' },
+]
 
 function generateQuestion(previousQuestion?: Question): Question {
   const functions: TrigFunction[] = ['sin', 'cos', 'tan']
@@ -108,6 +118,7 @@ function App() {
   
   const [question, setQuestion] = useState<Question>(generateQuestion())
   const [userAnswer, setUserAnswer] = useState('')
+  const [inputMode, setInputMode] = useState<'type' | 'select'>('select')
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showHint, setShowHint] = useState(false)
@@ -299,38 +310,107 @@ function App() {
                 <div className="text-5xl sm:text-6xl font-semibold text-foreground mb-4">
                   {question.func}({question.angle}°) = ?
                 </div>
-                <p className="text-muted-foreground">
-                  Enter the value
-                </p>
+                <AnimatePresence>
+                  {feedback === 'incorrect' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="mt-4"
+                    >
+                      <p className="text-destructive font-medium text-lg">
+                        Correct answer: {CORRECT_ANSWERS[`${question.func}-${question.angle}`][0]}
+                      </p>
+                    </motion.div>
+                  )}
+                  {!feedback && (
+                    <p className="text-muted-foreground">
+                      Enter the value
+                    </p>
+                  )}
+                </AnimatePresence>
               </div>
               
               <div className="space-y-4">
-                <div className="relative">
-                  <Input
-                    ref={inputRef}
-                    type="text"
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="e.g., 0.5 or 1/2"
-                    className="text-center text-2xl sm:text-3xl h-16 font-medium pr-16"
-                    disabled={isSubmitting}
-                  />
+                <div className="flex gap-2 mb-4">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant={inputMode === 'select' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      setUserAnswer(prev => prev + '√')
-                      inputRef.current?.focus()
+                      setInputMode('select')
+                      setUserAnswer('')
                     }}
                     disabled={isSubmitting}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 text-xl font-bold hover:bg-accent hover:text-accent-foreground"
-                    title="Insert radical sign"
+                    className="flex-1"
                   >
-                    √
+                    Select Answer
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={inputMode === 'type' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setInputMode('type')
+                      setUserAnswer('')
+                      setTimeout(() => inputRef.current?.focus(), 0)
+                    }}
+                    disabled={isSubmitting}
+                    className="flex-1"
+                  >
+                    Type Answer
                   </Button>
                 </div>
+
+                {inputMode === 'select' ? (
+                  <Select
+                    value={userAnswer}
+                    onValueChange={setUserAnswer}
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger className="text-center text-2xl sm:text-3xl h-16 font-medium">
+                      <SelectValue placeholder="Choose a value..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DROPDOWN_OPTIONS.map((option) => (
+                        <SelectItem 
+                          key={option.value} 
+                          value={option.value}
+                          className="text-xl font-medium cursor-pointer"
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      ref={inputRef}
+                      type="text"
+                      value={userAnswer}
+                      onChange={(e) => setUserAnswer(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="e.g., 0.5 or 1/2"
+                      className="text-center text-2xl sm:text-3xl h-16 font-medium pr-16"
+                      disabled={isSubmitting}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setUserAnswer(prev => prev + '√')
+                        inputRef.current?.focus()
+                      }}
+                      disabled={isSubmitting}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0 text-xl font-bold hover:bg-accent hover:text-accent-foreground"
+                      title="Insert radical sign"
+                    >
+                      √
+                    </Button>
+                  </div>
+                )}
                 
                 <Button
                   onClick={handleSubmit}
@@ -341,14 +421,16 @@ function App() {
                   {isSubmitting ? 'Checking...' : 'Submit Answer'}
                 </Button>
                 
-                <button
-                  onClick={() => setShowHint(!showHint)}
-                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showHint ? 'Hide hint' : 'Show accepted formats'}
-                </button>
+                {inputMode === 'type' && (
+                  <button
+                    onClick={() => setShowHint(!showHint)}
+                    className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showHint ? 'Hide hint' : 'Show accepted formats'}
+                  </button>
+                )}
                 
-                {showHint && (
+                {inputMode === 'type' && showHint && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
